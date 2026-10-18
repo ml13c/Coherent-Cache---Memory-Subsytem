@@ -1,0 +1,21 @@
+sequenceDiagram
+    autonumber
+    participant R0 as CPU requester 0
+    participant C0 as L1 cache 0 (I)
+    participant F as Coherence fabric
+    participant C1 as L1 cache 1 (M)
+    participant A as Memory adapter
+    participant M as Shared memory
+    R0->>C0: read(address)
+    C0->>F: BusRd(line address)
+    F->>C1: snoop BusRd
+    C1-->>F: hit M + dirty line data
+    F->>A: write back dirty 16-byte line
+    A->>M: 4-beat write burst
+    M-->>A: write response
+    A-->>F: writeback complete
+    F->>C1: commit M to S
+    C1-->>F: snoop complete
+    F-->>C0: data + new state S
+    C0-->>R0: requested word
+    Note over C0,C1: Both caches now hold clean S copies; backing memory is up to date.

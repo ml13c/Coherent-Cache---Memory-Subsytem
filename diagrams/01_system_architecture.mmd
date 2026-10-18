@@ -1,0 +1,28 @@
+flowchart TB
+    subgraph REQUESTERS[Simulated CPU requesters]
+      CPU0[CPU requester 0]
+      CPU1[CPU requester 1]
+    end
+    subgraph DUT[Coherent cache subsystem - synthesizable RTL]
+      subgraph L1A[L1 cache 0 - 2 way / 512 B]
+        C0[Controller + MESI + tags/data + LRU]
+      end
+      subgraph L1B[L1 cache 1 - 2 way / 512 B]
+        C1[Controller + MESI + tags/data + LRU]
+      end
+      FAB[Snooping coherence fabric
+RR arbitration + serialized transactions]
+      AXI[Memory transaction / AXI4-style burst adapter]
+      PERF[Performance counters]
+    end
+    RAM[Shared backing memory
+Simulation memory model]
+    CPU0 <-->|32-bit load/store req/resp| C0
+    CPU1 <-->|32-bit load/store req/resp| C1
+    C0 <-->|BusRd / BusRdX / BusUpgr / WB + snoops| FAB
+    C1 <-->|BusRd / BusRdX / BusUpgr / WB + snoops| FAB
+    FAB <-->|16-byte line transactions| AXI
+    AXI <-->|4-beat, 32-bit burst reads/writes| RAM
+    C0 -. event counts .-> PERF
+    C1 -. event counts .-> PERF
+    FAB -. transaction counts .-> PERF

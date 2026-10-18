@@ -1,0 +1,16 @@
+flowchart LR
+    ADDR[32-bit byte address] --> TAG[Tag: bits 31:8
+24 bits]
+    ADDR --> IDX[Set index: bits 7:4
+4 bits, 16 sets]
+    ADDR --> OFF[Line offset: bits 3:0
+4 bits, 16 bytes]
+    IDX --> W0[Way 0: tag + MESI + 128-bit data]
+    IDX --> W1[Way 1: tag + MESI + 128-bit data]
+    IDX --> LRU[1-bit LRU metadata per set]
+    TAG --> CMP[Tag comparators]
+    W0 --> CMP
+    W1 --> CMP
+    CMP --> HIT[Hit / miss result]
+    OFF --> SELECT[32-bit word selector
+aligned accesses only]

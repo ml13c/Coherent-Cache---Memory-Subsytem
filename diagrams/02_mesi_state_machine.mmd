@@ -1,0 +1,22 @@
+stateDiagram-v2
+    direction LR
+    [*] --> I: reset
+    state "Invalid (I)" as I
+    state "Shared (S)" as S
+    state "Exclusive (E)" as E
+    state "Modified (M)" as M
+    I --> E: local read miss; no peer copy (BusRd)
+    I --> S: local read miss; peer has copy (BusRd)
+    I --> M: local write miss; get ownership (BusRdX)
+    E --> M: local write hit (silent)
+    E --> S: snooped peer BusRd
+    E --> I: snooped BusRdX or eviction
+    S --> M: local write hit; BusUpgr / invalidate peers
+    S --> I: snooped BusRdX or BusUpgr or eviction
+    M --> S: snooped BusRd / writeback first
+    M --> I: snooped BusRdX / writeback first
+    M --> I: local dirty eviction / writeback
+    S --> S: local read hit
+    E --> E: local read hit
+    M --> M: local read/write hit
+    I --> I: unrelated snoop

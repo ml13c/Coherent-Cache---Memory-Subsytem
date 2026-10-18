@@ -1,0 +1,29 @@
+flowchart TB
+    CPU[CPU valid/ready load-store port] --> PORT[Request latch + response buffer<br/>one outstanding request]
+    PORT --> DEC[32-bit address decoder<br/>tag 31:8 / set 7:4 / offset 3:0]
+    DEC --> TAG0[Way 0 tag + MESI array]
+    DEC --> TAG1[Way 1 tag + MESI array]
+    DEC --> D0[Way 0 128-bit data array]
+    DEC --> D1[Way 1 128-bit data array]
+    TAG0 --> COMP0[Way 0 compare<br/>state != I]
+    TAG1 --> COMP1[Way 1 compare<br/>state != I]
+    DEC --> COMP0
+    DEC --> COMP1
+    COMP0 --> SEL[Hit / way select]
+    COMP1 --> SEL
+    D0 --> DATA[128-bit data mux and store merger]
+    D1 --> DATA
+    SEL --> DATA
+    DEC --> DATA
+    DATA --> RESP[32-bit read-word extract / write-word insertion]
+    RESP --> PORT
+    SEL --> CTRL[L1 transaction FSM<br/>hit / miss / refill / eviction / snoop]
+    LRU[16 x 1-bit LRU metadata] <--> CTRL
+    CTRL <--> TAG0
+    CTRL <--> TAG1
+    CTRL <--> D0
+    CTRL <--> D1
+    CTRL <--> SNOOP[Snoop handler + local-access interlock<br/>stable MESI / transient busy]
+    SNOOP <--> FAB[Coherence request/response and snoop port]
+    CTRL <--> FAB
+    CTRL --> COUNTS[Per-cache hit / miss / store events]

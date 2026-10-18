@@ -4,11 +4,11 @@ sequenceDiagram
     participant C0 as L1 cache 0 (S)
     participant F as Coherence fabric
     participant C1 as L1 cache 1 (S)
-    R0->>C0: write(address, data)
+    R0->>C0: store(address, data)
     C0->>F: BusUpgr(line address)
-    F->>C1: snoop invalidate
-    C1-->>F: invalidate complete (S to I)
-    F-->>C0: ownership granted
-    C0->>C0: update word; state S to M
-    C0-->>R0: write acknowledged
-    Note over C0,C1: Cache 0 is the sole owner; backing memory remains stale until flush.
+    F->>C1: invalidate matching shared line
+    C1-->>F: line is Invalid + snoop ack
+    F-->>C0: exclusive ownership grant (serialized)
+    C0->>C0: confirm same line still S; update word and mark M
+    C0-->>R0: store response
+    Note over C0,C1: A racing snoop before grant forces recheck/retry, not a stale S-to-M update

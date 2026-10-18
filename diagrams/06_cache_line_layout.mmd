@@ -1,16 +1,18 @@
 flowchart LR
-    ADDR[32-bit byte address] --> TAG[Tag: bits 31:8
-24 bits]
-    ADDR --> IDX[Set index: bits 7:4
-4 bits, 16 sets]
-    ADDR --> OFF[Line offset: bits 3:0
-4 bits, 16 bytes]
-    IDX --> W0[Way 0: tag + MESI + 128-bit data]
-    IDX --> W1[Way 1: tag + MESI + 128-bit data]
-    IDX --> LRU[1-bit LRU metadata per set]
-    TAG --> CMP[Tag comparators]
-    W0 --> CMP
-    W1 --> CMP
-    CMP --> HIT[Hit / miss result]
-    OFF --> SELECT[32-bit word selector
-aligned accesses only]
+    ADDR[32-bit byte address] --> TAG[Tag: 31:8<br/>24 bits]
+    ADDR --> IDX[Set: 7:4<br/>4 bits = 16 sets]
+    ADDR --> OFF[Offset: 3:0<br/>word bits 3:2, aligned only]
+    IDX --> W0[Way 0<br/>24-bit tag + 2-bit MESI + 128-bit line]
+    IDX --> W1[Way 1<br/>24-bit tag + 2-bit MESI + 128-bit line]
+    IDX --> LRU[1 LRU bit per set]
+    TAG --> CMP0[Way 0 tag match AND state not I]
+    TAG --> CMP1[Way 1 tag match AND state not I]
+    W0 --> CMP0
+    W1 --> CMP1
+    CMP0 --> HIT[hit / selected way]
+    CMP1 --> HIT
+    W0 --> MUX[128-bit line mux]
+    W1 --> MUX
+    HIT --> MUX
+    MUX --> WORD[32-bit word selector / store-word updater]
+    OFF --> WORD

@@ -5,18 +5,18 @@ stateDiagram-v2
     state "Shared (S)" as S
     state "Exclusive (E)" as E
     state "Modified (M)" as M
-    I --> E: local read miss; no peer copy (BusRd)
-    I --> S: local read miss; peer has copy (BusRd)
-    I --> M: local write miss; get ownership (BusRdX)
-    E --> M: local write hit (silent)
-    E --> S: snooped peer BusRd
-    E --> I: snooped BusRdX or eviction
-    S --> M: local write hit; BusUpgr / invalidate peers
-    S --> I: snooped BusRdX or BusUpgr or eviction
-    M --> S: snooped BusRd / writeback first
-    M --> I: snooped BusRdX / writeback first
-    M --> I: local dirty eviction / writeback
+    I --> E: BusRd fill; no peer copy
+    I --> S: BusRd fill; peer copy
+    I --> M: BusRdX fill; exclusive grant then store
+    E --> M: local store hit; no bus request
+    E --> S: peer BusRd
+    E --> I: peer BusRdX or clean eviction
+    S --> M: BusUpgr + peer invalidation ack + grant
+    S --> I: peer BusRdX/BusUpgr or clean eviction
+    M --> S: peer BusRd; dirty writeback completes
+    M --> I: peer BusRdX; dirty writeback completes
+    M --> I: dirty eviction; writeback completes
     S --> S: local read hit
     E --> E: local read hit
-    M --> M: local read/write hit
-    I --> I: unrelated snoop
+    M --> M: local load/store hit
+    I --> I: snoop of absent line

@@ -1,6 +1,6 @@
 # Final-System Requirements and Acceptance Criteria
 
-**Document:** REQ-001 | **Version:** 0.1 | **State:** Planned, not implemented
+**Document:** REQ-001 | **Version:** 0.2 | **State:** Planned, not implemented
 
 | ID | Requirement | Objective acceptance evidence |
 | --- | --- | --- |
@@ -20,6 +20,12 @@
 | REQ-014 | Reference scoreboard, assertions and functional coverage | Regression exits cleanly; all required scenario coverage bins hit; report attached |
 | REQ-015 | FPGA synthesis and timing | Record target part, constraints, resource counts, timing results; 100-MHz goal marked pass/fail |
 | REQ-016 | Reproducible build and documentation | README contains tool versions, commands, directory map and honest feature status |
+| REQ-017 | Local CPU accesses coherently ordered against snoops | Race tests verify earlier accepted stores are committed before snoop acknowledgements; snoop priority used for same-cycle collision |
+| REQ-018 | Exclusive and Modified ownership invariants | At stable boundaries, neither E nor M may coexist with any non-I peer state for the same line |
+| REQ-019 | Pending BusUpgr cannot revive stale S data | Test interleaved prior snoop/invalidation; revalidate tag/state, cancel/retry if invalidated |
+| REQ-020 | Independent reference data and operation ordering | Scoreboard expected words derived from CPU writes and legal commit order; no expected data copied from DUT read results |
+| REQ-021 | L1 datapath follows documented design | Verify tag/way selection, word extraction/merging, MESI tag metadata, invalid-way priority and 1-bit LRU |
+| REQ-022 | Standalone FPGA execution boundary documented | Cache subsystem synthesizes; any full on-board demo additionally supplies synthesizable memory and traffic generator |
 
 ## Performance measurements (report actual results, do not invent them)
 

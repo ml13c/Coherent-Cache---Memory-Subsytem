@@ -8,14 +8,14 @@ sequenceDiagram
     participant M as Shared memory
     R0->>C0: read(address)
     C0->>F: BusRd(line address)
-    F->>C1: snoop BusRd
-    C1-->>F: hit M + dirty line data
-    F->>A: write back dirty 16-byte line
-    A->>M: 4-beat write burst
+    F->>C1: snoop BusRd (block conflicting local accesses)
+    C1-->>F: M hit + latest 16-byte dirty data
+    F->>A: writeback dirty line
+    A->>M: aligned four-beat write burst
     M-->>A: write response
     A-->>F: writeback complete
-    F->>C1: commit M to S
-    C1-->>F: snoop complete
-    F-->>C0: data + new state S
+    F->>C1: commit M to S (data now clean)
+    C1-->>F: snoop-complete acknowledgement
+    F-->>C0: latest line + grant S
     C0-->>R0: requested word
-    Note over C0,C1: Both caches now hold clean S copies; backing memory is up to date.
+    Note over C0,C1: Both copies S and clean; memory contains latest data

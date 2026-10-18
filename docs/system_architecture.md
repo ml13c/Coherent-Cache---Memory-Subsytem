@@ -1,6 +1,6 @@
 # System Architecture Specification
 
-**Document:** ARCH-001 | **Version:** 0.1 | **State:** Proposed final architecture | **Date:** 2026-10-18
+**Document:** ARCH-001 | **Version:** 0.2 | **State:** Proposed final architecture | **Date:** 2026-10-18
 
 ## 1. Purpose and scope
 
@@ -10,36 +10,30 @@ Implement a coherent, dual-L1 data-cache memory subsystem in synthesizable Syste
 
 ```mermaid
 flowchart TB
-    subgraph REQUESTERS[Simulated CPU requesters]
+    subgraph TB[Outside synthesizable RTL - simulation testbench]
       CPU0[CPU requester 0]
       CPU1[CPU requester 1]
+      RAM[Shared backing memory model]
     end
-    subgraph DUT[Coherent cache subsystem - synthesizable RTL]
-      subgraph L1A[L1 cache 0 - 2 way / 512 B]
-        C0[Controller + MESI + tags/data + LRU]
-      end
-      subgraph L1B[L1 cache 1 - 2 way / 512 B]
-        C1[Controller + MESI + tags/data + LRU]
-      end
-      FAB[Snooping coherence fabric
-RR arbitration + serialized transactions]
-      AXI[Memory transaction / AXI4-style burst adapter]
+    subgraph DUT[Synthesizable coherent-cache RTL subsystem]
+      C0[L1 cache 0<br/>2-way, 16 sets, 512 B<br/>tags, data, MESI, LRU, FSM]
+      C1[L1 cache 1<br/>2-way, 16 sets, 512 B<br/>tags, data, MESI, LRU, FSM]
+      FAB[Snooping coherence fabric<br/>round-robin arbiter, serialization<br/>grants and snoop acknowledgements]
+      AXI[32-bit AXI4-style memory adapter<br/>one 4-beat burst at a time]
       PERF[Performance counters]
     end
-    RAM[Shared backing memory
-Simulation memory model]
-    CPU0 <-->|32-bit load/store req/resp| C0
-    CPU1 <-->|32-bit load/store req/resp| C1
-    C0 <-->|BusRd / BusRdX / BusUpgr / WB + snoops| FAB
-    C1 <-->|BusRd / BusRdX / BusUpgr / WB + snoops| FAB
-    FAB <-->|16-byte line transactions| AXI
-    AXI <-->|4-beat, 32-bit burst reads/writes| RAM
-    C0 -. event counts .-> PERF
-    C1 -. event counts .-> PERF
-    FAB -. transaction counts .-> PERF
+    CPU0 <-->|request / response| C0
+    CPU1 <-->|request / response| C1
+    C0 <-->|coherence requests + snoops| FAB
+    C1 <-->|coherence requests + snoops| FAB
+    FAB <-->|line reads / dirty writebacks| AXI
+    AXI <-->|4 x 32-bit beats, handshakes| RAM
+    C0 -. local hits / misses / stores .-> PERF
+    C1 -. local hits / misses / stores .-> PERF
+    FAB -. snoops / invalidations / writebacks .-> PERF
 ```
 
-**Boundary:** the requester and backing-memory model are testbench components during RTL simulation. Both L1 controllers, the snooping fabric and the memory adapter are intended to be synthesizable.
+**Boundary:** the requesters and backing-memory model are testbench components during RTL simulation. Both L1 controllers, snooping fabric, memory adapter, and performance counters are intended to be synthesizable. To run the entire subsystem *on the FPGA*, add a synthesizable memory slave (e.g. BRAM) and synthesizable test stimulus; synthesis of the cache RTL alone is not an on-board functional demo.
 
 ## 3. Configuration and cache organization
 
@@ -64,31 +58,33 @@ Simulation memory model]
 
 ```mermaid
 flowchart LR
-    ADDR[32-bit byte address] --> TAG[Tag: bits 31:8
-24 bits]
-    ADDR --> IDX[Set index: bits 7:4
-4 bits, 16 sets]
-    ADDR --> OFF[Line offset: bits 3:0
-4 bits, 16 bytes]
-    IDX --> W0[Way 0: tag + MESI + 128-bit data]
-    IDX --> W1[Way 1: tag + MESI + 128-bit data]
-    IDX --> LRU[1-bit LRU metadata per set]
-    TAG --> CMP[Tag comparators]
-    W0 --> CMP
-    W1 --> CMP
-    CMP --> HIT[Hit / miss result]
-    OFF --> SELECT[32-bit word selector
-aligned accesses only]
+    ADDR[32-bit byte address] --> TAG[Tag: 31:8<br/>24 bits]
+    ADDR --> IDX[Set: 7:4<br/>4 bits = 16 sets]
+    ADDR --> OFF[Offset: 3:0<br/>word bits 3:2, aligned only]
+    IDX --> W0[Way 0<br/>24-bit tag + 2-bit MESI + 128-bit line]
+    IDX --> W1[Way 1<br/>24-bit tag + 2-bit MESI + 128-bit line]
+    IDX --> LRU[1 LRU bit per set]
+    TAG --> CMP0[Way 0 tag match AND state not I]
+    TAG --> CMP1[Way 1 tag match AND state not I]
+    W0 --> CMP0
+    W1 --> CMP1
+    CMP0 --> HIT[hit / selected way]
+    CMP1 --> HIT
+    W0 --> MUX[128-bit line mux]
+    W1 --> MUX
+    HIT --> MUX
+    MUX --> WORD[32-bit word selector / store-word updater]
+    OFF --> WORD
 ```
 
-Cache line metadata per way consists of tag, MESI state and data; one LRU bit is maintained per set. An invalid line is represented by state I, removing the need for an independent valid bit. State and tag update atomically when a fill or snoop completes.
+Cache line metadata per way consists of tag, MESI state and data; one LRU bit is maintained per set. An invalid line is represented by state I, removing the need for an independent valid bit. State and tag update are logically atomic at the serialized commit boundary. Per-line metadata is described in [`l1_microarchitecture.md`](l1_microarchitecture.md).
 
 ## 4. RTL component responsibilities
 
 | Component | Purpose |
 | --- | --- |
 | `cache_subsystem_top` | Connect requesters, two cache controllers, coherence fabric and memory adapter |
-| `l1_cache` ×2 | Detect hits/misses, update words, allocate/replace lines, respond to CPU requests |
+| `l1_cache` ×2 | Detect hits/misses, update words, allocate/replace lines, arbitrate local accesses vs snoops and respond to CPU requests |
 | `cache_tag_data_array` | Store tag, 128-bit data and MESI metadata for 2 ways × 16 sets |
 | `lru_controller` | Choose least-recently-used way (when both ways are valid) |
 | `coherence_fabric` | Round-robin arbitrate and serialize coherence transactions; broadcast snoops |
@@ -115,24 +111,24 @@ stateDiagram-v2
     state "Shared (S)" as S
     state "Exclusive (E)" as E
     state "Modified (M)" as M
-    I --> E: local read miss; no peer copy (BusRd)
-    I --> S: local read miss; peer has copy (BusRd)
-    I --> M: local write miss; get ownership (BusRdX)
-    E --> M: local write hit (silent)
-    E --> S: snooped peer BusRd
-    E --> I: snooped BusRdX or eviction
-    S --> M: local write hit; BusUpgr / invalidate peers
-    S --> I: snooped BusRdX or BusUpgr or eviction
-    M --> S: snooped BusRd / writeback first
-    M --> I: snooped BusRdX / writeback first
-    M --> I: local dirty eviction / writeback
+    I --> E: BusRd fill; no peer copy
+    I --> S: BusRd fill; peer copy
+    I --> M: BusRdX fill; exclusive grant then store
+    E --> M: local store hit; no bus request
+    E --> S: peer BusRd
+    E --> I: peer BusRdX or clean eviction
+    S --> M: BusUpgr + peer invalidation ack + grant
+    S --> I: peer BusRdX/BusUpgr or clean eviction
+    M --> S: peer BusRd; dirty writeback completes
+    M --> I: peer BusRdX; dirty writeback completes
+    M --> I: dirty eviction; writeback completes
     S --> S: local read hit
     E --> E: local read hit
-    M --> M: local read/write hit
-    I --> I: unrelated snoop
+    M --> M: local load/store hit
+    I --> I: snoop of absent line
 ```
 
-The diagram shows stable line states, not every transient pipeline/controller state. While a snoop/writeback is pending, the fabric must block conflicting line transactions until ownership and memory data are coherent.
+The diagram shows **stable MESI states**, not the transient controller FSM. **Only I/I, M/I, I/M, E/I, I/E, S/I, I/S, or S/S are valid stable two-cache combinations for one line.** The controller must also serialize **local hits against snoops**, not just bus traffic. See [`coherence_ordering.md`](coherence_ordering.md) for the exact snoop-priority, drain, grant, and retry rules.
 
 ### Serialized coherence operations
 
@@ -145,7 +141,7 @@ The diagram shows stable line states, not every transient pipeline/controller st
 
 **Snoop responses** must distinguish: no hit, clean hit, modified hit + line data, and completion acknowledgement. When a modified owner is snooped, the fabric saves/flushes the latest data *before* returning the line or issuing ownership to the requester.
 
-Arbitration is round-robin between the two caches; the initial implementation permits one active fabric transaction and one memory burst at a time. Cache-side stall handling is mandatory.
+Arbitration is round-robin between the two caches; the design permits one active fabric transaction and one memory burst at a time. Cache-side stall handling is mandatory. A waiting `BusUpgr` must revalidate its tag/state because an earlier snoop can invalidate the line before the upgrade commits.
 
 ## 6. Sequence: read from a modified peer
 
@@ -160,20 +156,20 @@ sequenceDiagram
     participant M as Shared memory
     R0->>C0: read(address)
     C0->>F: BusRd(line address)
-    F->>C1: snoop BusRd
-    C1-->>F: hit M + dirty line data
-    F->>A: write back dirty 16-byte line
-    A->>M: 4-beat write burst
+    F->>C1: snoop BusRd (block conflicting local accesses)
+    C1-->>F: M hit + latest 16-byte dirty data
+    F->>A: writeback dirty line
+    A->>M: aligned four-beat write burst
     M-->>A: write response
     A-->>F: writeback complete
-    F->>C1: commit M to S
-    C1-->>F: snoop complete
-    F-->>C0: data + new state S
+    F->>C1: commit M to S (data now clean)
+    C1-->>F: snoop-complete acknowledgement
+    F-->>C0: latest line + grant S
     C0-->>R0: requested word
-    Note over C0,C1: Both caches now hold clean S copies; backing memory is up to date.
+    Note over C0,C1: Both copies S and clean; memory contains latest data
 ```
 
-**Postcondition:** cache 0 and cache 1 both hold Shared copies and memory has the latest value. The result returned to CPU0 must match the most recent completed CPU store.
+**Postcondition:** cache 0 and cache 1 both hold Shared copies and memory has the latest value. The snooped M owner sends an **explicit completion acknowledgement after M→S**, before the fabric returns the latest data and grants S. A read must reflect the most recent store ordered before it.
 
 ## 7. Sequence: Shared-to-Modified write upgrade
 
@@ -184,17 +180,17 @@ sequenceDiagram
     participant C0 as L1 cache 0 (S)
     participant F as Coherence fabric
     participant C1 as L1 cache 1 (S)
-    R0->>C0: write(address, data)
+    R0->>C0: store(address, data)
     C0->>F: BusUpgr(line address)
-    F->>C1: snoop invalidate
-    C1-->>F: invalidate complete (S to I)
-    F-->>C0: ownership granted
-    C0->>C0: update word; state S to M
-    C0-->>R0: write acknowledged
-    Note over C0,C1: Cache 0 is the sole owner; backing memory remains stale until flush.
+    F->>C1: invalidate matching shared line
+    C1-->>F: line is Invalid + snoop ack
+    F-->>C0: exclusive ownership grant (serialized)
+    C0->>C0: confirm same line still S; update word and mark M
+    C0-->>R0: store response
+    Note over C0,C1: A racing snoop before grant forces recheck/retry, not a stale S-to-M update
 ```
 
-**Postcondition:** cache 0 holds M, cache 1 holds I, and memory may remain stale until the next required writeback.
+**Postcondition:** cache 0 holds M, cache 1 holds I, and memory may remain stale until the next required writeback. The ownership grant follows invalidation acknowledgement; the store follows the grant. If the queued S line is invalidated by a racing prior transaction, the controller revalidates and retries as a miss rather than upgrading a stale entry.
 
 ## 8. Other flows that must be supported
 
@@ -207,11 +203,15 @@ sequenceDiagram
 - **Fair contention**: both requesters issue misses simultaneously; round-robin arbiter eventually serves both.
 - **Reset**: invalidate all lines and clear pending transactions/counters; do not treat reset as memory persistence/flush.
 
-## 9. Timing and synthesis
+## 9. L1 internal datapath and concurrency
+
+See [`l1_microarchitecture.md`](l1_microarchitecture.md) for the **end-goal internal block diagram** (tags, data, comparators, LRU, FSM, snoop interlock) and [`coherence_ordering.md`](coherence_ordering.md) for simultaneous local store/snoop ordering. These are final architectural contracts, not extra stages.
+
+## 10. Timing and synthesis
 
 Target **Nexys A7-100T / xc7a100tcsg324-1**, with a nominal design goal of **100 MHz** (not a claimed achieved clock). Report actual post-implementation WNS, estimated Fmax, LUTs, FFs and memory resources, and explain critical path. If BRAM inference constrains combinational read timing, architecture may add pipeline stages while preserving ready/valid behavior.
 
-## 10. Explicit exclusions
+## 11. Explicit exclusions
 
 - No full RISC-V CPU implementation.
 - No instruction caches, multilevel L2/L3 or virtual memory/TLB.
@@ -219,6 +219,6 @@ Target **Nexys A7-100T / xc7a100tcsg324-1**, with a nominal design goal of **100
 - No speculative loads, out-of-order completion or >1 outstanding request per requester.
 - No claim of full general-purpose AXI4 compliance until a separate protocol conformance pass.
 
-## 11. Acceptance principle
+## 12. Acceptance principle
 
 An architectural feature is **complete only when implementation, a self-checking test, and evidence (assertions/coverage/waveforms/results)** agree. The documentation is a target specification, not evidence of completion.

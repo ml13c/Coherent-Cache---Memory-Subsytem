@@ -1,28 +1,22 @@
 flowchart TB
-    subgraph REQUESTERS[Simulated CPU requesters]
+    subgraph TB[Outside synthesizable RTL - simulation testbench]
       CPU0[CPU requester 0]
       CPU1[CPU requester 1]
+      RAM[Shared backing memory model]
     end
-    subgraph DUT[Coherent cache subsystem - synthesizable RTL]
-      subgraph L1A[L1 cache 0 - 2 way / 512 B]
-        C0[Controller + MESI + tags/data + LRU]
-      end
-      subgraph L1B[L1 cache 1 - 2 way / 512 B]
-        C1[Controller + MESI + tags/data + LRU]
-      end
-      FAB[Snooping coherence fabric
-RR arbitration + serialized transactions]
-      AXI[Memory transaction / AXI4-style burst adapter]
+    subgraph DUT[Synthesizable coherent-cache RTL subsystem]
+      C0[L1 cache 0<br/>2-way, 16 sets, 512 B<br/>tags, data, MESI, LRU, FSM]
+      C1[L1 cache 1<br/>2-way, 16 sets, 512 B<br/>tags, data, MESI, LRU, FSM]
+      FAB[Snooping coherence fabric<br/>round-robin arbiter, serialization<br/>grants and snoop acknowledgements]
+      AXI[32-bit AXI4-style memory adapter<br/>one 4-beat burst at a time]
       PERF[Performance counters]
     end
-    RAM[Shared backing memory
-Simulation memory model]
-    CPU0 <-->|32-bit load/store req/resp| C0
-    CPU1 <-->|32-bit load/store req/resp| C1
-    C0 <-->|BusRd / BusRdX / BusUpgr / WB + snoops| FAB
-    C1 <-->|BusRd / BusRdX / BusUpgr / WB + snoops| FAB
-    FAB <-->|16-byte line transactions| AXI
-    AXI <-->|4-beat, 32-bit burst reads/writes| RAM
-    C0 -. event counts .-> PERF
-    C1 -. event counts .-> PERF
-    FAB -. transaction counts .-> PERF
+    CPU0 <-->|request / response| C0
+    CPU1 <-->|request / response| C1
+    C0 <-->|coherence requests + snoops| FAB
+    C1 <-->|coherence requests + snoops| FAB
+    FAB <-->|line reads / dirty writebacks| AXI
+    AXI <-->|4 x 32-bit beats, handshakes| RAM
+    C0 -. local hits / misses / stores .-> PERF
+    C1 -. local hits / misses / stores .-> PERF
+    FAB -. snoops / invalidations / writebacks .-> PERF

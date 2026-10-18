@@ -1,6 +1,6 @@
 # Interface Contract (Proposed)
 
-**Document:** IF-001 | **Version:** 0.1 | **State:** Architectural interface, RTL signal naming subject to refinement.
+**Document:** IF-001 | **Version:** 0.2 | **State:** Architectural interface, RTL signal naming subject to refinement.
 
 ## 1. Per-requester interface
 
@@ -19,7 +19,7 @@ One in-flight request is supported *per requester*. Valid/ready transactions tra
 | `resp_rdata` | out | 32 | Load result (ignored for stores) |
 | `resp_error` | out | 1 | Unsupported access / protocol error if implemented |
 
-Requests may be blocked while a miss/coherence operation is in progress. No read response must be returned before the latest value is coherent.
+Requests may be blocked while a miss/coherence operation is in progress. A new request can be accepted only if no prior accepted request is awaiting completion. A same-cycle snoop wins the acceptance tie and may lower `req_ready`; already accepted same-line stores must be completed before the snoop acknowledges. No read response can be returned before the latest ordered value is coherent.
 
 ## 2. Coherence-fabric transaction contract
 
@@ -33,7 +33,9 @@ The RTL may choose discrete signals or SystemVerilog structs/interfaces. Semanti
 - `grant`: serialized completion; output `fill_state` E/S/M as appropriate.
 - `valid/ready` or request/ack handshakes with stable-while-stalled guarantees.
 
-Exactly one coherence transaction is active; the fabric may wait for snoop acknowledgements and backing-memory completion before granting the requester. Arbitration must eventually serve both ports under sustained simultaneous demand.
+Exactly one coherence transaction is active; the fabric waits for all necessary snoop acknowledgements and backing-memory completion **before granting ownership**. Arbiter round-robin selection must eventually serve both ports under sustained demand.
+
+**Ordering/interlock semantics:** the L1 exposes an internal snoop-pending/interlock (actual RTL signal naming TBD), drains accepted conflicting CPU operations before ack, and exposes simulation-observable local store commit + state transition events. A pending `BusUpgr` must re-check that the same S line remains present; if not, the cache retries as `BusRdX` via a defined cancellation/re-request handshake. This rule prevents two caches from believing they exclusively own the same line. See `coherence_ordering.md` for the full contract.
 
 ## 3. Backing memory / AXI4-style adapter
 
@@ -51,4 +53,4 @@ No narrow/unaligned accesses, reordering, multiple IDs or interleaved transactio
 
 ## 4. Reset
 
-Reset invalidates all L1 tag/MESI entries, clears pending fabric transactions and performance counters, and causes no fabricated completion acknowledgements. The *testbench* controls initial backing-memory contents. Reset during in-flight transfers will be separately tested and documented; it is not a durability or persistence guarantee.
+Reset invalidates all L1 tag/MESI entries, clears pending fabric transactions and performance counters, and causes no fabricated completion acknowledgements. The *simulation-only testbench* controls initial backing-memory contents. The memory model is **outside** the synthesizable boundary; standalone FPGA operation requires an additional synthesizable BRAM memory slave and stimulus generator. Reset during in-flight transfers will be separately tested and documented; it is not a durability or persistence guarantee.

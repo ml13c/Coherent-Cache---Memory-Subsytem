@@ -1,34 +1,36 @@
 flowchart TB
-    subgraph TB[SystemVerilog UVM testbench - simulation only]
-      TEST[UVM tests + virtual sequences]
-      AG0[CPU agent 0
-sequencer / driver / monitor]
-      AG1[CPU agent 1
-sequencer / driver / monitor]
-      MEM[Memory agent
-variable-latency model / monitor]
-      SB[Reference memory model
-+ coherence-aware scoreboard]
-      COV[Functional coverage
-+ protocol assertions]
-      TEST --> AG0
-      TEST --> AG1
-      TEST --> MEM
-      AG0 --> SB
-      AG1 --> SB
-      AG0 --> COV
-      AG1 --> COV
-      MEM --> SB
-      MEM --> COV
+    TEST[UVM test + virtual sequences]
+    AG0[CPU agent 0<br/>sequencer / driver / monitor]
+    AG1[CPU agent 1<br/>sequencer / driver / monitor]
+    MEM[Memory agent<br/>memory model / variable latency / bus monitor]
+    ORDER[Coherence + commit-order monitor<br/>grants, snoops, line-state events]
+    MODEL[Independent architectural reference memory<br/>derived from CPU store payloads and defined order]
+    SB[Scoreboard<br/>compare read results / response order]
+    COV[Functional coverage + SVA<br/>MESI ownership / protocol / backpressure]
+    subgraph DUT[Synthesizable design under test]
+      C0[L1 cache 0]
+      FAB[Snooping fabric + memory adapter]
+      C1[L1 cache 1]
+      C0 <--> FAB
+      C1 <--> FAB
     end
-    subgraph RTL[DUT - synthesizable coherent cache subsystem]
-      DUT0[Cache 0]
-      BUS[Coherence fabric + AXI4-style adapter]
-      DUT1[Cache 1]
-      DUT0 <--> BUS
-      DUT1 <--> BUS
-    end
-    AG0 <-->|CPU 0 interface| DUT0
-    AG1 <-->|CPU 1 interface| DUT1
-    MEM <-->|Memory channels| BUS
-    BUS -. status, sampled state, protocol events .-> COV
+    TEST --> AG0
+    TEST --> AG1
+    TEST --> MEM
+    AG0 <-->|request / response| C0
+    AG1 <-->|request / response| C1
+    MEM <-->|memory channels| FAB
+    AG0 -->|accepted request + completed response| MODEL
+    AG1 -->|accepted request + completed response| MODEL
+    AG0 --> SB
+    AG1 --> SB
+    MEM -->|memory transactions| SB
+    FAB -. grants / snoops / commit events .-> ORDER
+    C0 -. state changes / local commits .-> ORDER
+    C1 -. state changes / local commits .-> ORDER
+    ORDER -->|legal transaction ordering| MODEL
+    MODEL -->|expected data, never DUT read data| SB
+    ORDER --> COV
+    AG0 --> COV
+    AG1 --> COV
+    MEM --> COV

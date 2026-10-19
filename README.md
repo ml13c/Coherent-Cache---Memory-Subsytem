@@ -27,8 +27,4 @@ A SystemVerilog project for two L1 data caches that share memory using **MESI co
 - [Interfaces](docs/interfaces.md) — proposed signals and memory transactions
 - [Scope](docs/requirements.md) — features we plan to implement
 
-Editable diagrams are in [diagrams/coherent_cache_system.drawio](diagrams/coherent_cache_system.drawio); Mermaid sources are in `diagrams/`.
-
-`rtl/`, `sim/`, `verification/`, and `scripts/` are reserved for implementation. [Verification notes](docs/verification_plan.md) are kept separately.
-
 **Status:** design documented; RTL and measurements not started. The 100 MHz clock is a goal, not an achieved result.

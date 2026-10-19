@@ -1,3 +1,3 @@
-# SystemVerilog assertions — planned
+# Assertions
 
-Put executable properties here for the MESI stable-pair invariants, snoop/store ordering, ready/valid backpressure, burst sizes, and ownership grant timing as defined in `docs/verification_plan.md`.
+SystemVerilog interface, MESI and ordering properties will go here.

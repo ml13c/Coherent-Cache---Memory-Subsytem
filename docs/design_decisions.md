@@ -1,29 +1,18 @@
-# Architecture Decision Log
+# Why we chose this design
 
-**Document:** ADR-001 | **Version:** 0.2
+This is the target architecture, not the only way to build a cache.
 
-| Decision | Rationale | Revisit if... |
+| Choice | Reason | Tradeoff |
 | --- | --- | --- |
-| Two private caches, not a full CPU | Focuses effort on RTL/DV and coherent memory hierarchy | Integrating a processor becomes a separate stretch goal |
-| Two-way, 16 sets, 16-byte line | Makes all corner cases tractable; address split is easy to audit | Resource mapping/timing demands new parameters |
-| Full MESI, not MSI | Exercises E optimization, sharing and ownership changes | Coherence effort must be reduced to demonstrable subset |
-| Central snooping fabric, not directory | Fewer agents and deterministic arbitration for a 2-cache design | Scaling beyond two caches becomes a goal |
-| One transaction in fabric at a time | Keeps bus ownership ordering deterministic; local cache hits still need snoop interlocks | Throughput optimization is intentionally added later |
-| Snoop-priority same-cycle tie / drain older local request | Prevents a local M/E store from passing an already active snoop, without silently dropping accepted writes | Adding a pipelined local/snoop scoreboard becomes feasible |
-| Retry invalidated queued BusUpgr | A pending S upgrade can be invalidated before it reaches the front of the coherence bus | More complex retry-free queue design is separately proven |
-| Flush M owner before downgrade/invalidate | Simplifies latest-data source and memory semantics at cost of extra traffic; prevents dirty sharing without Owned state | Introducing MOESI or direct dirty forwarding becomes a goal |
-| Aligned 32-bit operations only | Avoids byte masks, unaligned split access and endianness corner cases | ISA integration requires byte/halfword accesses |
-| AXI4-style subset | Provides real burst-handshake design work without broad AXI coverage claims | Compliance is explicitly required |
-| Initial simulator XSIM, UVM simulator TBD | Early RTL sim is available in Vivado 2025.2; UVM capabilities must be validated | Simulator support is tested on the actual machine |
-| 100-MHz timing goal, not promise | Gives a measurable FPGA constraint | Implementation shows different achievable frequency |
-| Synthesizable cache core vs simulated backing memory | Makes RTL simulation, UVM and on-FPGA timing analysis feasible independently | A hardware BRAM slave + test traffic are implemented |
-| MESI metadata encodes validity and dirtiness | MESI=I means invalid; MESI=M means dirty so extra valid/dirty bits are redundant | Enhancing coherence state representation |
+| **Two private L1 caches** | Makes cache coherence necessary without needing full CPU cores | More control logic than a single cache |
+| **16 sets, 2 ways, 16-byte lines** | Small enough to inspect while still showing set conflicts | Tiny capacity compared with a real CPU |
+| **Write-back** | Avoids a memory write on every store | Dirty lines need writeback on eviction or sharing |
+| **Write-allocate** | A write miss fetches the line so later accesses can hit | A store may require a full line fetch |
+| **LRU replacement** | A simple way to choose a victim based on recent use | One bit works for 2 ways, not for arbitrary associativity |
+| **MESI** | Covers clean sharing, private ownership, and dirty ownership | Requires snoops, invalidations, and transient wait states |
+| **Round-robin snooping bus** | Gives both caches a turn and keeps ownership ordered | Only one coherence transaction at once |
+| **Write back M before sharing** | Both Shared copies and memory agree on the data | Extra memory traffic compared with an Owned-state protocol |
+| **AXI4-style bursts** | Moves a whole line in four standard-size transfers | Our first adapter won't support every AXI feature |
+| **Simulated CPUs and memory** | Keeps the project focused on RTL cache design | Full on-board operation would need more modules |
 
-## Open design questions
-
-- Which UVM-capable simulator and UVM library will pass a campus-license smoke test?
-- Are tag/data arrays inferred as block RAM or distributed storage under the chosen cycle-latency interface?
-- What error response, if any, should a memory AXI burst failure produce to the CPU?
-- Which exact performance-counter widths and overflow behavior should be implemented?
-
-These do **not** change the high-level end goal, but they must be decided before signing off the corresponding RTL.
+The FPGA target is **Nexys A7-100T**, with **100 MHz as an initial goal**. We will adjust pipelining if the actual memory implementation needs it.

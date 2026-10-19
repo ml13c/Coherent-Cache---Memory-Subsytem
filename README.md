@@ -1,17 +1,34 @@
 # Coherent Cache & Memory Subsystem
 
-**Architecture-first documentation starter** | Version 0.1 | 2026-10-18
+A SystemVerilog project for two L1 data caches that share memory using **MESI coherence**. The CPU requesters and main memory are simulated; the caches and interconnect are intended to be synthesizable.
 
-A portfolio RTL / design-verification project planned for **AMD Vivado ML Edition 2025.2** and a Nexys A7-100T (Artix-7) synthesis target. The final architecture is specified here **before RTL implementation**.
+## The design
 
-> **Status:** Design proposal, not a completed or verified implementation. All quantitative results remain TBD until measured.
+| Part | Plan |
+| --- | --- |
+| L1 caches | Two private, 2-way caches; 512 bytes each |
+| Cache lines | 16 bytes; 16 sets per cache |
+| CPU interface | Aligned 32-bit loads and stores |
+| Writes | Write-back and write-allocate |
+| Replacement | One LRU bit per set |
+| Coherence | MESI on a shared snooping bus |
+| Memory link | 32-bit AXI4-style, four-beat bursts |
+| FPGA target | Nexys A7-100T; Vivado 2025.2 ML Edition |
 
-## Intended final system
+**Why this setup?** One cache teaches hits, misses, and eviction. A second cache adds the harder problem: keeping two copies of the same address consistent. The small sizes keep the RTL manageable while still covering real cache behavior.
 
-- Two independent simulated CPU requesters, each attached to a private L1 data cache.
-- Each cache: 32-bit addresses, 32-bit word accesses, 16 sets, 2 ways, 16-byte lines (**512 bytes/cache**).
-- Write-back / write-allocate, true 2-way LRU (one bit per set), MESI line states.
-- A central snooping fabric with round-robin arbitration and one coherence transaction active at a time.
-- Shared backing-memory model reached by an AXI4-style burst adapter (32-bit data, four beats per 16-byte line).
-- SystemVerilog testbench initially; UVM agents, reference scoreboard, assertions, functional coverage as final verification goals.
-- Vivado synthesis, utilization, timing, and measured hit/miss and traffic results.
+## Documentation
+
+- [System architecture](docs/system_architecture.md) — what connects to what, and the MESI states
+- [Inside an L1 cache](docs/l1_microarchitecture.md) — storage, datapath, and address breakdown
+- [Design choices](docs/design_decisions.md) — why we chose MESI, LRU, write-back, and the bus
+- [Transaction examples](docs/transaction_examples.md) — two common cache-to-cache operations
+- [Coherence ordering](docs/coherence_ordering.md) — how simultaneous requests are handled
+- [Interfaces](docs/interfaces.md) — proposed signals and memory transactions
+- [Scope](docs/requirements.md) — features we plan to implement
+
+Editable diagrams are in [diagrams/coherent_cache_system.drawio](diagrams/coherent_cache_system.drawio); Mermaid sources are in `diagrams/`.
+
+`rtl/`, `sim/`, `verification/`, and `scripts/` are reserved for implementation. [Verification notes](docs/verification_plan.md) are kept separately.
+
+**Status:** design documented; RTL and measurements not started. The 100 MHz clock is a goal, not an achieved result.

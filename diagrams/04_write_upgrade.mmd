@@ -1,14 +1,15 @@
 sequenceDiagram
     autonumber
-    participant R0 as CPU requester 0
-    participant C0 as L1 cache 0 (S)
-    participant F as Coherence fabric
-    participant C1 as L1 cache 1 (S)
-    R0->>C0: store(address, data)
-    C0->>F: BusUpgr(line address)
-    F->>C1: invalidate matching shared line
-    C1-->>F: line is Invalid + snoop ack
-    F-->>C0: exclusive ownership grant (serialized)
-    C0->>C0: confirm same line still S; update word and mark M
-    C0-->>R0: store response
-    Note over C0,C1: A racing snoop before grant forces recheck/retry, not a stale S-to-M update
+    participant R0 as CPU 0
+    participant C0 as L1 0 (S)
+    participant F as Fabric
+    participant C1 as L1 1 (S)
+    R0->>C0: write X
+    C0->>F: BusUpgr X
+    F->>C1: invalidate X
+    C1-->>F: line invalidated, ack
+    F-->>C0: ownership grant
+    C0->>C0: recheck tag and state
+    C0->>C0: update data, mark M
+    C0-->>R0: write complete
+    Note over C0,C1: If S was lost, retry as a write miss

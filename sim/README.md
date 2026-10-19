@@ -1,3 +1,3 @@
-# Self-checking simulation — planned
+# Simulation
 
-Place direct SystemVerilog tests, simulated CPU requesters, and the **simulation-only** backing-memory model here. Begin with directed tests before a complete UVM environment.
+Directed SystemVerilog tests, CPU requesters and simulated backing memory go here.

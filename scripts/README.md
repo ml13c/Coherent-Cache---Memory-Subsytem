@@ -1,3 +1,3 @@
-# Reproducible scripts — planned
+# Scripts
 
-Add simulation launch, regression, and Vivado synthesis/timing commands here when the corresponding RTL exists. Store actual logs and results; never fabricate measured performance.
+Add simulation, regression and synthesis scripts when code is ready.

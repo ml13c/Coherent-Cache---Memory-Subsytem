@@ -1,17 +1,16 @@
 sequenceDiagram
     autonumber
-    participant A as CPU0
-    participant C0 as L1 cache 0 (M)
-    participant F as Coherence fabric
-    participant C1 as L1 cache 1
-    A->>C0: store X accepted; not yet committed
+    participant R0 as CPU 0
+    participant C0 as L1 0 (M)
+    participant F as Fabric
+    participant C1 as L1 1
+    R0->>C0: write X accepted
     C1->>F: BusRd X
     F->>C0: snoop BusRd X
-    Note over C0: Block newly accepted conflicting accesses; finish prior accepted store
-    C0->>C0: commit accepted store payload to X
-    C0-->>F: snoop M hit + latest dirty line data
-    F->>F: serialize dirty writeback and downgrade
-    F->>C0: commit downgrade M to S
-    C0-->>F: snoop-complete ack
-    F-->>C1: grant latest X as S
-    Note over C0,C1: The peer cannot observe data older than the earlier committed store
+    Note over C0: Finish earlier accepted write first
+    C0->>C0: commit write X
+    C0-->>F: latest dirty line
+    F->>F: write back latest line
+    F->>C0: downgrade M to S
+    C0-->>F: snoop ack
+    F-->>C1: latest line, grant S

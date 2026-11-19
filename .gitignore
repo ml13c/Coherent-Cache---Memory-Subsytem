@@ -1,0 +1,30 @@
+# personal / local
+CLAUDE.md
+notes/
+.claude/
+.vscode/
+
+# xsim
+xsim.dir/
+xsim.covdb/
+xsim.codeCov/
+*.wdb
+*.vcd
+*.jou
+*.log
+*.pb
+*.str
+webtalk*
+.Xil/
+xcrg_*/
+
+# vivado synthesis output
+syn/out/
+fpga/out/
+*.dcp
+*.rpt
+vivado*.backup.*
+
+# os
+.DS_Store
+Thumbs.db

@@ -1,30 +1,36 @@
 # Coherent Cache & Memory Subsystem
 
-A SystemVerilog project for two L1 data caches that share memory using **MESI coherence**. The CPU requesters and main memory are simulated; the caches and interconnect are intended to be synthesizable.
+Two write-back L1 data caches kept coherent with MESI over an atomic snooping bus, written in synthesizable SystemVerilog and verified with a UVM testbench: constrained-random stimulus against a reference model, SVA protocol checks, functional coverage and mutation testing.
 
-## The design
+```mermaid
+flowchart LR
+    subgraph DUT["coherent_top (RTL)"]
+        C0["l1_cache 0"]
+        BUS["snoop_bus"]
+        C1["l1_cache 1"]
+    end
+    CPU0["CPU 0<br/>TB agent"] <--> C0
+    CPU1["CPU 1<br/>TB agent"] <--> C1
+    C0 <--> BUS
+    C1 <--> BUS
+    BUS <--> MEM["Memory model<br/>TB"]
+```
 
-| Part | Plan |
-| --- | --- |
-| L1 caches | Two private, 2-way caches; 512 bytes each |
-| Cache lines | 16 bytes; 16 sets per cache |
-| CPU interface | Aligned 32-bit loads and stores |
-| Writes | Write-back and write-allocate |
-| Replacement | One LRU bit per set |
-| Coherence | MESI on a shared snooping bus |
-| Memory link | 32-bit AXI4-style, four-beat bursts |
-| FPGA target | Nexys A7-100T; Vivado 2025.2 ML Edition |
+## Stages
 
-**Why this setup?** One cache teaches hits, misses, and eviction. A second cache adds the harder problem: keeping two copies of the same address consistent. The small sizes keep the RTL manageable while still covering real cache behavior.
+| # | Adds | Status |
+| --- | --- | --- |
+| 0 | Architecture spec, package, memory model, handshake assertions | In progress |
+| 1 | Direct-mapped read path, reference model | – |
+| 2 | Write-back, write-allocate, byte strobes, dirty eviction | – |
+| 3 | 2-way set associative, LRU | – |
+| 4 | UVM environment, coverage, mutation testing | – |
+| 5 | Synthesis of `l1_cache` | – |
+| 6 | Two caches, atomic snooping bus, MSI | – |
+| 7 | E state, race handling, coherence stress | – |
+| 8 | Performance counters, false-sharing demo | – |
+| 9 | Nexys A7-100T board demo | – |
 
-## Documentation
+## Docs
 
-- [System architecture](docs/system_architecture.md) — what connects to what, and the MESI states
-- [Inside an L1 cache](docs/l1_microarchitecture.md) — storage, datapath, and address breakdown
-- [Design choices](docs/design_decisions.md) — why we chose MESI, LRU, write-back, and the bus
-- [Transaction examples](docs/transaction_examples.md) — two common cache-to-cache operations
-- [Coherence ordering](docs/coherence_ordering.md) — how simultaneous requests are handled
-- [Interfaces](docs/interfaces.md) — proposed signals and memory transactions
-- [Scope](docs/requirements.md) — features we plan to implement
-
-**Status:** design documented; RTL and measurements not started. The 100 MHz clock is a goal, not an achieved result.
+- [Architecture](docs/architecture.md)

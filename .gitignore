@@ -5,6 +5,7 @@ notes/
 .vscode/
 
 # xsim
+sim/out/
 xsim.dir/
 xsim.covdb/
 xsim.codeCov/

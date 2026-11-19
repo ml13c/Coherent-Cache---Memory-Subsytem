@@ -15,6 +15,7 @@ xsim.codeCov/
 *.pb
 *.str
 webtalk*
+dfx_runtime.txt
 .Xil/
 xcrg_*/
 

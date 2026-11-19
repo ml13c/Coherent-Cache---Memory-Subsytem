@@ -20,7 +20,7 @@ flowchart LR
 
 | # | Adds | Status |
 | --- | --- | --- |
-| 0 | Architecture spec, package, memory model, handshake assertions | In progress |
+| 0 | Architecture spec, package, memory model, handshake assertions | Done, in review |
 | 1 | Direct-mapped read path, reference model | – |
 | 2 | Write-back, write-allocate, byte strobes, dirty eviction | – |
 | 3 | 2-way set associative, LRU | – |
@@ -31,6 +31,25 @@ flowchart LR
 | 8 | Performance counters, false-sharing demo | – |
 | 9 | Nexys A7-100T board demo | – |
 
+## Results
+
+| Stage | Regression |
+| --- | --- |
+| 0 | 13/13 runs pass: package test at `WAYS` = 1, 2; memory model test, 3 configs × 3–5 seeds |
+
+## How to Run
+
+Requires Vivado 2025.2 (xsim) and bash (Git Bash on Windows). The scripts find Vivado through `VIVADO_BIN`, then `PATH`, then the default Windows install.
+
+```
+sim/regress.sh                                   # full regression
+sim/run.sh -t tb_mem_model -s 7 -p MAX_LAT=20    # one test, seed 7, one plusarg
+```
+
+Logs are written to `sim/out/<build>/seed_<n>.log`.
+
 ## Docs
 
 - [Architecture](docs/architecture.md)
+- [Verification](docs/verification.md)
+- [Bug log](docs/bugs.md)

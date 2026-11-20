@@ -29,10 +29,16 @@ interface line_if
     output req_ready, resp_valid, resp_rdata, resp_shared;
   endclocking
 
-  // Master side (test drivers; the cache in Stage 1)
+  // Master side (test drivers, when the cache is not the master)
   clocking mst_cb @(posedge clk);
     input  rst, req_ready, resp_valid, resp_rdata, resp_shared;
     output req_valid, req_cmd, req_addr, req_wdata, resp_ready;
+  endclocking
+
+  // Observer: samples everything, drives nothing
+  clocking mon_cb @(posedge clk);
+    input rst, req_valid, req_ready, req_cmd, req_addr, req_wdata,
+          resp_valid, resp_ready, resp_rdata, resp_shared;
   endclocking
 
 endinterface

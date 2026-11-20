@@ -1,7 +1,7 @@
 // line_channel_sva: protocol checks for one line channel.
 // Handshake rules on both directions, plus request/response pairing:
 // at most one request outstanding, and no response without a request.
-// Ports use line_if's signal names so a bind into an RTL module can use .*.
+// Attached to RTL with bind (see the tb tops); port names follow line_if.
 
 module line_channel_sva
   import cache_pkg::*;

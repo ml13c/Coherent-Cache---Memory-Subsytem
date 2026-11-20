@@ -84,7 +84,7 @@ Tags are compared combinationally in the cycle a request is accepted, so the hit
 
 ## Interfaces
 
-> CPU port stores (`we`, `wdata`, `strb`): Planned (Stage 2). Bus and snoop ports: Planned (Stage 6).
+> Bus and snoop ports: Planned (Stage 6).
 
 RTL modules use plain ports. The testbench wraps them in SystemVerilog interfaces.
 
@@ -145,7 +145,7 @@ Snoops have fixed latency and no ready. They win the tag lookup over the CPU (th
 
 ## Cache Controller
 
-> Planned (Stage 2: store hits and WriteBack. Stage 6: ARB)
+> Planned (Stage 6: ARB)
 
 ```mermaid
 stateDiagram-v2
@@ -191,16 +191,16 @@ A store to an S line is not a hit for writing: it needs `BusUpgr`.
 
 ## Write Policy and Eviction
 
-> Planned (Stage 2)
-
 ### Write-Back, Write-Allocate
 A store hit updates only the cache and sets M. A store miss fetches the line with `BusRdX`, merges the store bytes into the returned line and writes the whole line once, ending in M.
 
 ### Byte Strobes
-The data array has one write enable per byte (32 per line). A store shifts its 4-bit strobe to the word position given by `addr[4:2]`.
+The data array has one write enable per byte (32 per line). A store shifts its 4-bit strobe to the word position given by `addr[4:2]`. A strobe of `0000` is illegal: a CPU store writes at least one byte.
 
 ### Dirty Eviction
 If the selected victim contains modified data, memory is stale. The cache therefore writes the victim line back before requesting the new one. The victim stays in the array until the WriteBack is issued; there is no writeback buffer. A snoop that arrives while the cache waits for the bus finds the line in the array as usual. The cost is one extra memory round trip on every dirty miss.
+
+The WriteBack data comes from the data RAM's output register, not from a copy. The lookup read in the accept cycle leaves the victim set in that register, and the RAM is enabled only by an accepted CPU request (IDLE) or a fill (WAIT). A new CPU request presented during REQ or WAIT is not accepted, so it cannot enable the RAM, and the register holds the victim line until the WriteBack completes. The WriteBack response returns no data and does not touch the RAM; the controller tells it from a fill response by the command it sent.
 
 ```mermaid
 sequenceDiagram

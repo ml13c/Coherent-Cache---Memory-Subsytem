@@ -14,6 +14,7 @@ tb/env/cpu_if.sv
 tb/sva/handshake_sva.sv
 tb/sva/line_channel_sva.sv
 tb/sva/cpu_port_sva.sv
+tb/sva/tag_state_sva.sv
 tb/mem/mem_pkg.sv
 tb/model/model_pkg.sv
 

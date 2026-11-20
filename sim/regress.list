@@ -9,7 +9,10 @@ mem_default  tb_mem_model  -             1,2,3,4,5  -
 mem_fast     tb_mem_model  -             1,2,3      MIN_LAT=0,MAX_LAT=0,REQ_READY_PCT=100,RESP_READY_PCT=100
 mem_slow     tb_mem_model  -             1,2,3      MIN_LAT=5,MAX_LAT=40,REQ_READY_PCT=20,RESP_READY_PCT=20
 
-# L1 loads, direct-mapped: default memory, zero latency/no backpressure, slow memory
-l1_read      tb_l1_read    CACHE_WAYS=1  1,2,3,4,5  -
-l1_read_fast tb_l1_read    CACHE_WAYS=1  1,2,3      MIN_LAT=0,MAX_LAT=0,REQ_READY_PCT=100
-l1_read_slow tb_l1_read    CACHE_WAYS=1  1,2,3      MIN_LAT=5,MAX_LAT=40,REQ_READY_PCT=20
+# L1, direct-mapped. Default: 40% stores. Memory: default, zero latency/no backpressure, slow.
+l1           tb_l1         CACHE_WAYS=1  1,2,3,4,5  -
+l1_fast      tb_l1         CACHE_WAYS=1  1,2,3      MIN_LAT=0,MAX_LAT=0,REQ_READY_PCT=100
+l1_slow      tb_l1         CACHE_WAYS=1  1,2,3      MIN_LAT=5,MAX_LAT=40,REQ_READY_PCT=20
+# Store mix extremes: loads only in the random phase, stores only in the random phase
+l1_loads     tb_l1         CACHE_WAYS=1  1,2,3      STORE_PCT=0
+l1_stores    tb_l1         CACHE_WAYS=1  1,2,3      STORE_PCT=100

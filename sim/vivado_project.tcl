@@ -12,7 +12,7 @@ if {[llength $argv] < 1} {
 }
 set repo    [file normalize [file join [file dirname [info script]] ..]]
 set xpr     [file normalize [lindex $argv 0]]
-set sim_top [expr {[llength $argv] > 1 ? [lindex $argv 1] : "tb_l1_read"}]
+set sim_top [expr {[llength $argv] > 1 ? [lindex $argv 1] : "tb_l1"}]
 
 open_project $xpr
 

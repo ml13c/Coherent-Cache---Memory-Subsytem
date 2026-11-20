@@ -11,12 +11,18 @@ module cpu_port_sva
   input logic  rst,
   input logic  req_valid,
   input logic  req_ready,
+  input logic  req_we,
   input addr_t req_addr,
+  input word_t req_wdata,
+  input strb_t req_strb,
   input logic  resp_valid
 );
 
-  handshake_sva #(.NAME({NAME, ".req"}), .W(ADDR_W)) u_req (
-    .clk, .rst, .valid(req_valid), .ready(req_ready), .payload(req_addr)
+  localparam int unsigned REQ_W = 1 + ADDR_W + WORD_W + STRB_W;
+
+  handshake_sva #(.NAME({NAME, ".req"}), .W(REQ_W)) u_req (
+    .clk, .rst, .valid(req_valid), .ready(req_ready),
+    .payload({req_we, req_addr, req_wdata, req_strb})
   );
 
   logic        req_hs;
@@ -44,5 +50,10 @@ module cpu_port_sva
   a_addr_aligned: assert property (@(posedge clk) disable iff (rst)
     req_valid |-> req_addr[BYTE_OFF_W-1:0] == '0)
     else $error("%s: request address 0x%08h not word-aligned", NAME, req_addr);
+
+  // A CPU store always writes at least one byte. An all-zero strobe is illegal.
+  a_strb_nonzero: assert property (@(posedge clk) disable iff (rst)
+    req_valid && req_we |-> req_strb != '0)
+    else $error("%s: store to 0x%08h with strobe 0000", NAME, req_addr);
 
 endmodule

@@ -7,8 +7,10 @@ How the design is checked. Sections for parts not built yet are marked with the 
 | Path | Contents |
 | --- | --- |
 | `tb/env/line_if.sv` | Line channel interface, one clocking block per side |
+| `tb/env/cpu_if.sv` | CPU port interface, driver and monitor clocking blocks |
 | `tb/mem/mem_pkg.sv` | Memory model class and the initial-content function |
-| `tb/sva/` | Protocol assertions |
+| `tb/model/model_pkg.sv` | Reference model of one cache |
+| `tb/sva/` | Protocol assertions, bound into `l1_cache` |
 | `tb/tests/` | Test tops |
 | `sim/` | File list, run and regression scripts |
 
@@ -17,8 +19,14 @@ The memory model is the slave side of one line channel. It accepts one request a
 
 A line that was never written reads back a pattern computed from its address: each word holds its own byte address with the upper 16 bits inverted. A reference model can predict any line without sharing state with the memory, and a bug that routes an address into a data path cannot read back a matching value. A WriteBack response carries random data, so a master that uses it gets garbage.
 
+## Reference Model
+`cache_model` is called once per accepted CPU request, in acceptance order, and makes two independent predictions:
+
+1. **Load value.** What the load must return, taken from architectural memory only. It does not depend on cache contents or the replacement policy, so a wrong victim choice cannot make it agree with a wrong answer.
+2. **Access.** Hit or miss, the expected fill, and the line evicted, from a shadow copy of the cache's tags. The test compares this with the requests seen on the memory channel.
+
 ## Assertions
-`handshake_sva` checks one valid/ready channel. `line_channel_sva` applies it to both directions of a line channel and adds pairing rules.
+`handshake_sva` checks one valid/ready channel. `line_channel_sva` applies it to both directions of a line channel and adds pairing rules. `cpu_port_sva` applies it to the CPU request and checks that each response is a single pulse for exactly one accepted request and that addresses are word-aligned. Both are attached to `l1_cache` with `bind`.
 
 | Assertion | Rule |
 | --- | --- |
@@ -54,6 +62,27 @@ Each bug was planted in the memory model alone and the test run with seed 1.
 | Latency one cycle too long | Latency check |
 | Write silently lost | Data check |
 
-## Reference Model, Scoreboard, Coverage
+## Load Test (Stage 1)
+`tb_l1_read` runs a directed sequence, then random loads. The directed sequence covers a cold miss, a hit, a hit to another word of the line, a conflict miss 2 KiB away, a re-miss, and back-to-back hits; its hit/miss pattern is also checked against a fixed list, which validates the reference model itself.
 
-> Planned (Stage 1: reference model. Stage 4: UVM environment, coverage, RTL mutation testing)
+Random loads mix four address modes: hot lines (hits), same index with a new tag (conflict misses), sequential words, and uniform. Half of the conflict-mode tags differ from the previous tag in exactly one bit, so a tag compare that ignores any single bit fails. About half the loads are issued without waiting for the previous response.
+
+Each load is checked for data, for a 1-cycle response on a hit, and for exactly one BusRd of the predicted line on a miss and none on a hit. A run fails unless hits, cold misses, conflict misses and back-to-back requests all occurred, and memory saw one read per miss and no writes. It runs against the three memory configs above.
+
+### Checker Sanity (RTL Mutations)
+Each bug was planted in `cache_ctrl` alone and the test run with seed 1, 500 random loads.
+
+| Planted bug | Caught by |
+| --- | --- |
+| Hit returns word 0 of the line | Data check |
+| Hit ignores line state | `a_resp_known` (X), watchdog |
+| Fill writes the tag to the wrong set | Traffic check, hit latency check |
+| Fill returns word 0 of the line | Data check |
+| Tag compare ignores bit 0 | Traffic check, data check |
+| Tag compare ignores bit 20 | Traffic check, data check |
+| REQ leaves without waiting for ready | `a_valid_held`, watchdog |
+| Fill installs the line as I | Traffic check, hit latency check |
+
+## Scoreboard, Coverage
+
+> Planned (Stage 4: UVM environment, functional coverage, full mutation testing)

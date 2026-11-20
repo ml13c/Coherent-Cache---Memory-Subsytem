@@ -84,7 +84,7 @@ Tags are compared combinationally in the cycle a request is accepted, so the hit
 
 ## Interfaces
 
-> CPU port: Planned (Stage 1). Bus and snoop ports: Planned (Stage 6).
+> CPU port stores (`we`, `wdata`, `strb`): Planned (Stage 2). Bus and snoop ports: Planned (Stage 6).
 
 RTL modules use plain ports. The testbench wraps them in SystemVerilog interfaces.
 
@@ -145,7 +145,7 @@ Snoops have fixed latency and no ready. They win the tag lookup over the CPU (th
 
 ## Cache Controller
 
-> Planned (Stage 1: IDLE, REQ, WAIT. Stage 6: ARB)
+> Planned (Stage 2: store hits and WriteBack. Stage 6: ARB)
 
 ```mermaid
 stateDiagram-v2

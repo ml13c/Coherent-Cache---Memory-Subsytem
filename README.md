@@ -20,8 +20,8 @@ flowchart LR
 
 | # | Adds | Status |
 | --- | --- | --- |
-| 0 | Architecture spec, package, memory model, handshake assertions | Done, in review |
-| 1 | Direct-mapped read path, reference model | – |
+| 0 | Architecture spec, package, memory model, handshake assertions | Done |
+| 1 | Direct-mapped read path, reference model | Done, in review |
 | 2 | Write-back, write-allocate, byte strobes, dirty eviction | – |
 | 3 | 2-way set associative, LRU | – |
 | 4 | UVM environment, coverage, mutation testing | – |
@@ -36,6 +36,7 @@ flowchart LR
 | Stage | Regression |
 | --- | --- |
 | 0 | 13/13 runs pass: package test at `WAYS` = 1, 2; memory model test, 3 configs × 3–5 seeds |
+| 1 | 24/24 runs pass. Loads: 3,008 per run, 0 mismatches, 3 memory configs × 3–5 seeds. 8/8 planted RTL bugs caught |
 
 ## How to Run
 

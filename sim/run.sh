@@ -9,6 +9,9 @@
 # Output goes to sim/out/<build>/. Prints PASS or FAIL and exits 0 only on PASS.
 # A run passes only if its log contains "TEST PASSED" and no Error/Fatal lines:
 # xsim exits 0 even after $fatal, so its exit code is never trusted.
+# Warnings are failures too: any in xvlog/xelab, and any in the simulation log
+# after the test's "RESET:" line (before the first reset edge, FSM state is X and
+# unique case warns). A test that prints no "RESET:" line gets no exemption.
 # Options containing '=' go through --file/-f option files, because cmd.exe
 # splits '=' in .bat arguments on Windows.
 
@@ -56,6 +59,10 @@ cd "$OUT" || exit 2
 
 fail() { echo "FAIL  $BUILD seed=$SEED  ($1)"; exit 1; }
 
+# First warning line in a log (or in stdin), empty if none. Covers tool messages
+# ("WARNING:") and $warning ("Warning:").
+first_warning() { grep -i -m1 '^warning' "$@"; }
+
 if [ "$KEEP" -eq 0 ] || [ ! -d "xsim.dir/$SNAP" ]; then
   rm -rf xsim.dir
   {
@@ -70,6 +77,12 @@ if [ "$KEEP" -eq 0 ] || [ ! -d "xsim.dir/$SNAP" ]; then
 
   "$XELAB" "$TOP" -s "$SNAP" -debug typical --timescale 1ns/1ps --log xelab.log >/dev/null 2>&1
   { [ $? -eq 0 ] && ! grep -q '^ERROR' xelab.log; } || fail "elaborate: sim/out/$BUILD/xelab.log"
+
+  for l in xvlog.log xelab.log; do
+    w="$(first_warning "$l")"
+    # Remove the snapshot so a later -k run cannot reuse a build that failed here.
+    [ -z "$w" ] || { rm -rf xsim.dir; fail "warning in sim/out/$BUILD/$l: $w"; }
+  done
 fi
 
 {
@@ -84,4 +97,10 @@ fi
 [ -f "$LOG" ] || fail "no log"
 grep -qE '^(Error|Fatal|ERROR|FATAL)' "$LOG" && fail "errors in sim/out/$BUILD/seed_${SEED}.log"
 grep -q 'TEST PASSED' "$LOG" || fail "no TEST PASSED in sim/out/$BUILD/seed_${SEED}.log"
+if grep -q '^RESET:' "$LOG"; then
+  w="$(sed -n '/^RESET:/,$p' "$LOG" | first_warning)"
+else
+  w="$(first_warning "$LOG")"
+fi
+[ -z "$w" ] || fail "warning in sim/out/$BUILD/seed_${SEED}.log: $w"
 echo "PASS  $BUILD seed=$SEED"

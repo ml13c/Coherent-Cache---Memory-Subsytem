@@ -230,18 +230,23 @@ module tb_l1_read;
 
     mem   = new(lif);
     model = new();
-    void'($value$plusargs("N_REQ=%d",         n_req));
-    void'($value$plusargs("MIN_LAT=%d",       mem.min_lat));
-    void'($value$plusargs("MAX_LAT=%d",       mem.max_lat));
-    void'($value$plusargs("REQ_READY_PCT=%d", mem.req_ready_pct));
+    // if, not void'(): xsim warns when a system function's result is discarded.
+    if ($value$plusargs("N_REQ=%d",         n_req))             $display("PLUSARG: N_REQ");
+    if ($value$plusargs("MIN_LAT=%d",       mem.min_lat))       $display("PLUSARG: MIN_LAT");
+    if ($value$plusargs("MAX_LAT=%d",       mem.max_lat))       $display("PLUSARG: MAX_LAT");
+    if ($value$plusargs("REQ_READY_PCT=%d", mem.req_ready_pct)) $display("PLUSARG: REQ_READY_PCT");
     $display("CONFIG: WAYS=%0d n_req=%0d lat=[%0d,%0d] mem req_ready=%0d%%",
              WAYS, n_req, mem.min_lat, mem.max_lat, mem.req_ready_pct);
 
     cif.req_valid = 1'b0;
     fork mem.run(); join_none
 
+    // RESET: marks where warnings stop being tolerated. Before the first reset edge
+    // the FSM state is X, so cache_ctrl's unique case warns; sim/run.sh fails on any
+    // warning printed after this line.
     repeat (5) @(cif.drv_cb);
     rst <= 1'b0;
+    $display("RESET: released at %0d ns", $time);
     @(cif.drv_cb);
 
     // Directed phase

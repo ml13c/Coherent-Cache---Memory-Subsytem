@@ -133,11 +133,12 @@ module tb_mem_model;
     int unsigned pick;
 
     mem = new(lif);
-    void'($value$plusargs("N_TXN=%d",          n_txn));
-    void'($value$plusargs("MIN_LAT=%d",        mem.min_lat));
-    void'($value$plusargs("MAX_LAT=%d",        mem.max_lat));
-    void'($value$plusargs("REQ_READY_PCT=%d",  mem.req_ready_pct));
-    void'($value$plusargs("RESP_READY_PCT=%d", resp_ready_pct));
+    // if, not void'(): xsim warns when a system function's result is discarded.
+    if ($value$plusargs("N_TXN=%d",          n_txn))             $display("PLUSARG: N_TXN");
+    if ($value$plusargs("MIN_LAT=%d",        mem.min_lat))       $display("PLUSARG: MIN_LAT");
+    if ($value$plusargs("MAX_LAT=%d",        mem.max_lat))       $display("PLUSARG: MAX_LAT");
+    if ($value$plusargs("REQ_READY_PCT=%d",  mem.req_ready_pct)) $display("PLUSARG: REQ_READY_PCT");
+    if ($value$plusargs("RESP_READY_PCT=%d", resp_ready_pct))    $display("PLUSARG: RESP_READY_PCT");
     $display("CONFIG: n_txn=%0d lat=[%0d,%0d] req_ready=%0d%% resp_ready=%0d%%",
              n_txn, mem.min_lat, mem.max_lat, mem.req_ready_pct, resp_ready_pct);
 

@@ -43,6 +43,18 @@ A line that was never written reads back a pattern computed from its address: ea
 ## Pass/Fail
 A run passes only if its log contains `TEST PASSED` and no line starting with `Error` or `Fatal`. The simulator's exit code is not used: xsim exits 0 even after `$fatal`. An assertion failure therefore fails a run even when the test's own checks pass.
 
+Warnings fail a run too: any compile or elaborate warning, and any simulation warning after the test's `RESET:` line. The one exemption is before reset release, when the FSM state is still X and `unique case` warns. After reset, the same warning means the FSM reached an X or unlisted state. A test that prints no `RESET:` line gets no exemption.
+
+### Checker Sanity (Pass/Fail Rule)
+Each case was planted alone and the test run with seed 1.
+
+| Planted | Expected | Result |
+| --- | --- | --- |
+| `$warning` after `RESET:` in `tb_l1_read` | Fail | Fail |
+| `$warning` before `RESET:` in `tb_l1_read` | Pass | Pass |
+| `void'($value$plusargs(...))` (elaborate warning) | Fail | Fail |
+| `$warning` in `tb_mem_model` (no `RESET:` line) | Fail | Fail |
+
 ## Memory Model Test
 `tb_mem_model` drives random BusRd, BusRdX and WriteBack requests from a small hot set and the full address space, with random gaps and random response backpressure. It checks read data against a shadow memory, latency against the configured bounds, and `resp_shared = 0`. A run also fails unless the stress it claims was reached: both latency extremes, stalls on each channel with backpressure enabled, and reads of both written and never-written lines.
 

@@ -20,4 +20,4 @@ tb/model/model_pkg.sv
 # Test tops
 tb/tests/tb_cache_pkg.sv
 tb/tests/tb_mem_model.sv
-tb/tests/tb_l1_read.sv
+tb/tests/tb_l1.sv

@@ -7,10 +7,13 @@ module l1_cache
   input  logic       clk,
   input  logic       rst,
 
-  // CPU port (loads)
+  // CPU port
   input  logic       cpu_req_valid,
   output logic       cpu_req_ready,
+  input  logic       cpu_req_we,
   input  addr_t      cpu_req_addr,
+  input  word_t      cpu_req_wdata,
+  input  strb_t      cpu_req_strb,
   output logic       cpu_resp_valid,
   output word_t      cpu_resp_rdata,
 
@@ -37,7 +40,7 @@ module l1_cache
 
   logic                  data_en;
   index_t                data_addr;
-  logic [LINE_BYTES-1:0] data_we    [WAYS];
+  line_strb_t            data_we    [WAYS];
   line_t                 data_wdata;
   line_t                 data_rdata [WAYS];
 

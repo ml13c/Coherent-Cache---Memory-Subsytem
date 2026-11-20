@@ -46,6 +46,7 @@ package cache_pkg;
   typedef logic [WORD_W-1:0]      word_t;
   typedef logic [STRB_W-1:0]      strb_t;
   typedef logic [LINE_W-1:0]      line_t;
+  typedef logic [LINE_BYTES-1:0]  line_strb_t;  // one write enable per byte of a line
 
   // Line state. I = 00 so the reset value means invalid.
   typedef enum logic [1:0] {
@@ -94,6 +95,21 @@ package cache_pkg;
   // ---------------------------------------------------------------------------
   function automatic word_t get_word(line_t l, word_off_t w);
     return l[w*WORD_W +: WORD_W];
+  endfunction
+
+  // A word's byte strobe moved to its position in the line: word w owns line
+  // bytes [w*WORD_BYTES +: WORD_BYTES].
+  function automatic line_strb_t line_strb(word_off_t w, strb_t s);
+    return line_strb_t'(s) << (w * WORD_BYTES);
+  endfunction
+
+  // Line l with the bytes enabled in be replaced by store word d. d is repeated
+  // across the line, so byte b of the repeated copy is the byte that belongs there.
+  function automatic line_t merge_line(line_t l, word_t d, line_strb_t be);
+    line_t rep = {WORDS_PER_LINE{d}};
+    for (int unsigned b = 0; b < LINE_BYTES; b++)
+      if (be[b]) l[b*8 +: 8] = rep[b*8 +: 8];
+    return l;
   endfunction
 
   // ---------------------------------------------------------------------------

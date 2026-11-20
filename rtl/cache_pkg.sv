@@ -90,6 +90,13 @@ package cache_pkg;
   endfunction
 
   // ---------------------------------------------------------------------------
+  // Data helpers
+  // ---------------------------------------------------------------------------
+  function automatic word_t get_word(line_t l, word_off_t w);
+    return l[w*WORD_W +: WORD_W];
+  endfunction
+
+  // ---------------------------------------------------------------------------
   // State helpers
   // ---------------------------------------------------------------------------
   function automatic logic is_valid(mesi_e s);
